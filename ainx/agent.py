@@ -6,7 +6,17 @@ class AINXAgent:
 
     def receive(self, message: AINXMessage):
         print(f"[{self.name}] received: {message}")
-        return self.respond(message)
+        response = self.respond(message)
+        if response:
+            return response
 
     def respond(self, message: AINXMessage):
-        return AINXMessage(f"{self.name.upper()}::ACK::RESPONSE.to={message.role}")
+        if message.command == "QUERY":
+            return AINXMessage(
+                sender=self.name.upper(),
+                recipient=message.sender,
+                command="ACK",
+                payload=f"RESPONSE.to={message.sender}"
+            )
+        # Do not respond to ACK messages
+        return None
