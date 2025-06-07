@@ -1,33 +1,28 @@
-# ainx-core
-Structured protocol for AI-to-AI communication
-# AINX-Core
+# AINX Core
 
-**AINX** (Artificial INteraction eXchange) is a lightweight, structured protocol and agent framework that enables fast, modular, and interpretable AI-to-AI communication.
+**AINX** is a protocol for agent-to-agent communication designed to be fast, structured, and interoperable — aiming to become the "HTTP for agents."
 
-> "Human language was built for noise. AINX is built for precision."
+---
 
-## 🔧 What is AINX?
+## ✅ What’s implemented (v0.1)
 
-AINX is both:
-- A protocol: `ROLE::INTENT::OBJECT.key=value` (e.g., `ANALYST::QUERY::SALES.region=EMEA`)
-- A framework: For building modular agents that can talk, plan, and evolve together.
+- 🔁 **AINXMessage Protocol**: Structured message format (e.g., `sender::recipient::role::intent::content`)
+- 🧠 **Router Agent**: Routes messages to agents based on role
+- 👨‍🔬 **Built-in Agents**:
+  - `ResearcherAgent`
+  - `PlannerAgent`
+  - `CriticAgent`
+- 💻 **Command Line Interface**: Send agent messages via terminal
 
-## 📦 Components
+---
 
-- `protocol.py`: Defines the message grammar and parser.
-- `agent.py`: Base agent that can send, receive, and act.
-- `engine.py`: Simple message loop for multi-agent simulations.
-- `examples/`: See AINX in action.
+## 🚀 Usage
 
-## 🚀 Goals
+Run the CLI with:
 
-- Create a universal language for AI agent collaboration.
-- Support decision-making, task routing, and tool orchestration.
-- Be fast, interpretable, and future-proof.
+```bash
+python ainx_cli.py --sender human --intent search --message "What is AINX?"
 
-## 🧠 You're Early
-
-This is the beginning of a new way to think about agents. Join us.
 
 ## 📄 License
 
