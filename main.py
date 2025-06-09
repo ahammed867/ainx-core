@@ -1,27 +1,32 @@
-import sys
-import os
-
-# Ensure ainx-core is in the Python path
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+# main.py
 
 from core.ainx_message import AINXMessage
-from core.router import AINXRouter
 from agents.strategist import StrategistAgent
+from agents.validator import ValidatorAgent
 from agents.synthesizer import SynthesizerAgent
 
-def run_ainx_pipeline(prompt: str):
-    message = AINXMessage(task=prompt)
-    agents = [
-        StrategistAgent(),
-        SynthesizerAgent()
-    ]
-    router = AINXRouter(agents)
-    final_message = router.route(message)
+def main():
+    input_prompt = "Create a strategy to solve a complex logic problem."
 
-    print("\n✅ Final Synthesized Output:\n")
-    print(final_message.task)
-    print("\n📜 Agent Trail:", " -> ".join(final_message.agent_trail))
+    strategist = StrategistAgent()
+    validator = ValidatorAgent()
+    synthesizer = SynthesizerAgent()
+
+    # Step 1: Strategize
+    message = AINXMessage(sender="user", content=input_prompt)
+    message = strategist.process(message)
+
+    # Step 2: Validate
+    message = validator.process(message)
+
+    # Step 3: Synthesize
+    message = synthesizer.process(message)
+
+    # Final output
+    print("\n[AINX Final Output]")
+    print(message.content)
 
 if __name__ == "__main__":
-    run_ainx_pipeline("Solve the integral of x^2 * sin(x)")
+    main()
+
 
