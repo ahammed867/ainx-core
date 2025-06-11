@@ -1,13 +1,16 @@
+# agents/synthesizer.py
 from core.ainx_message import AINXMessage
 
 class SynthesizerAgent:
-    def process(self, message: AINXMessage) -> AINXMessage:
-        subtasks = message.task.split("\n")
-        
-        # Very basic simulated synthesis
-        solution = "🔧 Synthesized Plan:\n"
-        for i, step in enumerate(subtasks, 1):
-            solution += f"{i}. {step} → [simulated solution step]\n"
+    def __init__(self):
+        self.name = "SynthesizerAgent"
 
-        message.task = solution
-        return message
+    def handle(self, message: AINXMessage) -> AINXMessage:
+        # Basic simulated logic synthesis
+        synthesized = f"[Synthesized by {self.name}]: Interpreted strategy and building a cohesive response."
+
+        return AINXMessage(
+            role="synthesizer",
+            sender=self.name,
+            content=f"{message.content}\n\n---\n{synthesized}"
+        )
