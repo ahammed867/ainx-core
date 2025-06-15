@@ -1,0 +1,37 @@
+# AINX Async MVP Dependencies
+
+# Core async HTTP client
+aiohttp>=3.8.0
+
+# WebSocket support (for upcoming websocket_server.py)
+websockets>=10.0
+
+# Enhanced logging and monitoring
+colorlog>=6.0.0
+
+# JSON handling and data processing
+ujson>=5.0.0
+
+# Optional: For future database support
+aiosqlite>=0.17.0
+
+# Optional: For future Redis support (message bus scaling)
+aioredis>=2.0.0
+
+# Optional: For future monitoring and metrics
+prometheus_client>=0.15.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+black>=22.0.0
+flake8>=5.0.0
+
+# Optional: For future API integrations
+httpx>=0.24.0
+
+# Optional: For configuration management
+pydantic>=1.10.0
+
+# Optional: For advanced scheduling
+apscheduler>=3.9.0

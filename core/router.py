@@ -1,13 +1,11 @@
-from core.ainx_message import AINXMessage
+# core/router.py
 
 class AINXRouter:
     def __init__(self, agents):
-        self.agents = agents  # Ordered list of agents
+        self.agents = agents
 
-    def route(self, message: AINXMessage):
-        for agent in self.agents:
-            agent_name = agent.__class__.__name__
-            print(f"\n🔄 Passing to agent: {agent_name}")
-            message.add_agent_to_trail(agent_name)
-            message = agent.process(message)
-        return message
+    def route(self, agent_name, message):
+        agent = self.agents.get(agent_name)
+        if agent:
+            return agent.handle(message)
+        raise ValueError(f"Agent '{agent_name}' not found.")

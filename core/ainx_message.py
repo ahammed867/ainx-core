@@ -1,16 +1,15 @@
 from datetime import datetime
 import uuid
 
+# core/ainx_message.py
+
 class AINXMessage:
-    def __init__(self, task, source_agent="User", parent_id=None):
-        self.message_id = str(uuid.uuid4())
-        self.task = task
-        self.source_agent = source_agent
-        self.parent_id = parent_id
-        self.timestamp = datetime.utcnow().isoformat()
-        self.validation_state = "unvalidated"  # or: validated, rejected
-        self.agent_trail = [source_agent]
-        self.audit_log = []
+    def __init__(self, role, sender, content, metadata=None):
+        self.role = role  # "user", "strategist", etc.
+        self.sender = sender  # Name of sender
+        self.content = content  # The main text content
+        self.metadata = metadata or {}  # Dict for extra info
+
 
     def to_dict(self):
         return {

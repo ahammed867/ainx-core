@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./message_bus",
+        "./workspace"
+    ]
+}
