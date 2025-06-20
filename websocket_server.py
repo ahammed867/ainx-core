@@ -175,6 +175,7 @@ class AINXWebSocketServer:
             "agent_id": agent_id,
             "thought": thought
         })
+        
     
     async def report_task_started(self, agent_id: str, task: str):
         """Report agent started working on task"""
@@ -278,3 +279,6 @@ if __name__ == "__main__":
     # Run server standalone
     server = AINXWebSocketServer()
     server.run()
+
+
+  

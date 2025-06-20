@@ -7,7 +7,7 @@ import asyncio
 import aiohttp
 import json
 from typing import Dict, Any, Optional, List
-from async_agent_base import AsyncAgentBase
+from agents.async_agent_base import AsyncAgentBase  
 
 # WebSocket reporting imports
 try:
