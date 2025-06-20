@@ -1,284 +1,299 @@
 #!/usr/bin/env python3
 """
-AINX WebSocket Server - Real-time Agent Communication
-Enables live monitoring of async agent collaboration
+AINX Modern WebSocket Server - Real-time Agent Monitoring
+Fixed deprecation warnings and enhanced functionality
 """
 
 import asyncio
+import websockets
 import json
 import logging
-import websockets
-from typing import Set, Dict, Any, Optional
 from datetime import datetime
-import uuid
+from typing import Dict, Any, Set
+import signal
+import sys
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 class AINXWebSocketServer:
-    """WebSocket server for real-time AINX agent communication"""
+    """Modern AINX WebSocket Server for real-time agent monitoring"""
     
     def __init__(self, host: str = "localhost", port: int = 8765):
         self.host = host
         self.port = port
         self.clients: Set[websockets.WebSocketServerProtocol] = set()
-        self.agent_status: Dict[str, Dict[str, Any]] = {}
-        self.message_history: list = []
-        self.max_history = 1000  # Keep last 1000 messages
+        self.server = None
+        self.running = False
         
-    async def register_client(self, websocket: websockets.WebSocketServerProtocol):
-        """Register new WebSocket client"""
+        # Statistics
+        self.stats = {
+            "clients_connected": 0,
+            "total_connections": 0,
+            "messages_received": 0,
+            "messages_broadcast": 0,
+            "start_time": None
+        }
+    
+    async def register_client(self, websocket):
+        """Register a new WebSocket client - Fixed deprecation warning"""
         self.clients.add(websocket)
-        client_id = f"client_{len(self.clients)}"
-        logger.info(f"Client {client_id} connected from {websocket.remote_address}")
+        self.stats["clients_connected"] += 1
+        self.stats["total_connections"] += 1
         
-        # Send current agent status and recent history to new client
-        await self.send_to_client(websocket, {
-            "type": "connection_established",
-            "client_id": client_id,
-            "agent_status": self.agent_status,
-            "recent_messages": self.message_history[-10:]  # Last 10 messages
-        })
+        client_info = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}"
+        logger.info(f"📱 Client connected: {client_info} (Total: {len(self.clients)})")
+        
+        # Send welcome message
+        welcome_msg = {
+            "type": "welcome",
+            "message": "Connected to AINX WebSocket Server",
+            "server_info": {
+                "version": "2.0",
+                "capabilities": ["agent_monitoring", "real_time_updates", "performance_metrics"]
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+        await self.send_to_client(websocket, welcome_msg)
     
-    async def unregister_client(self, websocket: websockets.WebSocketServerProtocol):
-        """Unregister WebSocket client"""
+    async def unregister_client(self, websocket):
+        """Unregister a WebSocket client - Fixed deprecation warning"""
         self.clients.discard(websocket)
-        logger.info(f"Client disconnected")
+        self.stats["clients_connected"] -= 1
+        
+        client_info = f"{websocket.remote_address[0]}:{websocket.remote_address[1]}" if hasattr(websocket, 'remote_address') else "unknown"
+        logger.info(f"📱 Client disconnected: {client_info} (Remaining: {len(self.clients)})")
     
-    async def send_to_client(self, websocket: websockets.WebSocketServerProtocol, message: Dict[str, Any]):
-        """Send message to specific client"""
+    async def send_to_client(self, websocket, message: Dict[str, Any]):
+        """Send message to specific client - Fixed deprecation warning"""
         try:
-            await websocket.send(json.dumps(message, default=str))
+            await websocket.send(json.dumps(message))
         except websockets.exceptions.ConnectionClosed:
+            logger.warning("Attempted to send to closed connection")
             await self.unregister_client(websocket)
         except Exception as e:
             logger.error(f"Error sending to client: {e}")
     
-    async def broadcast(self, message: Dict[str, Any]):
+    async def broadcast_to_all_clients(self, message: Dict[str, Any]):
         """Broadcast message to all connected clients"""
         if not self.clients:
             return
-            
-        # Add timestamp and message ID
-        message.update({
-            "timestamp": datetime.now().isoformat(),
-            "message_id": str(uuid.uuid4())[:8]
-        })
         
-        # Store in history
-        self.message_history.append(message)
-        if len(self.message_history) > self.max_history:
-            self.message_history.pop(0)
+        # Create a copy of clients set to avoid modification during iteration
+        clients_copy = self.clients.copy()
         
-        # Send to all clients
-        disconnected_clients = set()
-        for client in self.clients:
-            try:
-                await client.send(json.dumps(message, default=str))
-            except websockets.exceptions.ConnectionClosed:
-                disconnected_clients.add(client)
-            except Exception as e:
-                logger.error(f"Error broadcasting to client: {e}")
-                disconnected_clients.add(client)
+        # Send to all clients concurrently
+        tasks = [self.send_to_client(client, message) for client in clients_copy]
+        await asyncio.gather(*tasks, return_exceptions=True)
         
-        # Clean up disconnected clients
-        for client in disconnected_clients:
-            await self.unregister_client(client)
+        self.stats["messages_broadcast"] += 1
     
-    async def handle_client_message(self, websocket: websockets.WebSocketServerProtocol, message: str):
-        """Handle message from WebSocket client"""
+    async def handle_client_message(self, websocket, message: str):
+        """Handle incoming messages from clients - Fixed deprecation warning"""
         try:
             data = json.loads(message)
-            message_type = data.get("type")
+            self.stats["messages_received"] += 1
             
+            message_type = data.get("type", "unknown")
+            logger.info(f"📨 Received {message_type} message from client")
+            
+            # Handle different message types
             if message_type == "ping":
-                await self.send_to_client(websocket, {"type": "pong"})
-            
-            elif message_type == "get_agent_status":
                 await self.send_to_client(websocket, {
-                    "type": "agent_status_response",
-                    "agent_status": self.agent_status
+                    "type": "pong",
+                    "timestamp": datetime.now().isoformat()
                 })
             
-            elif message_type == "get_message_history":
-                count = data.get("count", 50)
+            elif message_type == "get_stats":
+                stats_copy = self.stats.copy()
+                stats_copy["current_time"] = datetime.now().isoformat()
+                stats_copy["uptime"] = self._get_uptime()
+                
                 await self.send_to_client(websocket, {
-                    "type": "message_history_response",
-                    "messages": self.message_history[-count:]
+                    "type": "stats_response",
+                    "stats": stats_copy
+                })
+            
+            elif message_type == "agent_command":
+                # Broadcast agent commands to all clients
+                await self.broadcast_to_all_clients({
+                    "type": "agent_command_broadcast",
+                    "command": data.get("command"),
+                    "target_agent": data.get("target_agent"),
+                    "sender": "client",
+                    "timestamp": datetime.now().isoformat()
                 })
             
             else:
-                logger.warning(f"Unknown message type: {message_type}")
+                # Echo unknown messages back for debugging
+                await self.send_to_client(websocket, {
+                    "type": "echo",
+                    "original_message": data,
+                    "timestamp": datetime.now().isoformat()
+                })
                 
         except json.JSONDecodeError:
-            logger.error(f"Invalid JSON from client: {message}")
+            await self.send_to_client(websocket, {
+                "type": "error",
+                "message": "Invalid JSON format",
+                "timestamp": datetime.now().isoformat()
+            })
         except Exception as e:
             logger.error(f"Error handling client message: {e}")
+            await self.send_to_client(websocket, {
+                "type": "error", 
+                "message": f"Server error: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            })
     
-    async def client_handler(self, websocket: websockets.WebSocketServerProtocol, path: str):
-        """Handle WebSocket client connection"""
+    async def client_handler(self, websocket, path: str):
+        """Handle WebSocket client connections - Fixed deprecation warning"""
         await self.register_client(websocket)
+        
         try:
             async for message in websocket:
                 await self.handle_client_message(websocket, message)
+                
         except websockets.exceptions.ConnectionClosed:
-            pass
+            logger.info("Client connection closed normally")
+        except Exception as e:
+            logger.error(f"Error in client handler: {e}")
         finally:
             await self.unregister_client(websocket)
     
-    # AINX Agent Communication Methods
-    
-    async def report_agent_status(self, agent_id: str, status: str, details: Optional[Dict[str, Any]] = None):
-        """Report agent status change"""
-        self.agent_status[agent_id] = {
-            "status": status,
-            "last_update": datetime.now().isoformat(),
-            "details": details or {}
-        }
+    def _get_uptime(self) -> str:
+        """Get server uptime"""
+        if not self.stats["start_time"]:
+            return "0 seconds"
         
-        await self.broadcast({
-            "type": "agent_status_update",
-            "agent_id": agent_id,
-            "status": status,
-            "details": details
-        })
-    
-    async def report_message_sent(self, sender: str, recipient: str, role: str, intent: str, content: str):
-        """Report AINX message sent"""
-        await self.broadcast({
-            "type": "ainx_message",
-            "direction": "sent",
-            "sender": sender,
-            "recipient": recipient,
-            "role": role,
-            "intent": intent,
-            "content": content
-        })
-    
-    async def report_message_received(self, sender: str, recipient: str, role: str, intent: str, content: str):
-        """Report AINX message received"""
-        await self.broadcast({
-            "type": "ainx_message",
-            "direction": "received",
-            "sender": sender,
-            "recipient": recipient,
-            "role": role,
-            "intent": intent,
-            "content": content
-        })
-    
-    async def report_agent_thinking(self, agent_id: str, thought: str):
-        """Report agent internal thinking/processing"""
-        await self.broadcast({
-            "type": "agent_thinking",
-            "agent_id": agent_id,
-            "thought": thought
-        })
+        uptime_seconds = (datetime.now() - self.stats["start_time"]).total_seconds()
         
-    
-    async def report_task_started(self, agent_id: str, task: str):
-        """Report agent started working on task"""
-        await self.broadcast({
-            "type": "task_started",
-            "agent_id": agent_id,
-            "task": task
-        })
-        
-        await self.report_agent_status(agent_id, "working", {"current_task": task})
-    
-    async def report_task_completed(self, agent_id: str, task: str, result: str):
-        """Report agent completed task"""
-        await self.broadcast({
-            "type": "task_completed",
-            "agent_id": agent_id,
-            "task": task,
-            "result": result
-        })
-        
-        await self.report_agent_status(agent_id, "idle", {"last_completed": task})
-    
-    async def report_error(self, agent_id: str, error: str, details: Optional[Dict[str, Any]] = None):
-        """Report agent error"""
-        await self.broadcast({
-            "type": "agent_error",
-            "agent_id": agent_id,
-            "error": error,
-            "details": details
-        })
-        
-        await self.report_agent_status(agent_id, "error", {"error": error, "details": details})
+        if uptime_seconds < 60:
+            return f"{uptime_seconds:.1f} seconds"
+        elif uptime_seconds < 3600:
+            return f"{uptime_seconds/60:.1f} minutes"
+        else:
+            return f"{uptime_seconds/3600:.1f} hours"
     
     async def start_server(self):
         """Start the WebSocket server"""
-        logger.info(f"Starting AINX WebSocket server on {self.host}:{self.port}")
-        
-        async with websockets.serve(self.client_handler, self.host, self.port):
-            logger.info(f"AINX WebSocket server running on ws://{self.host}:{self.port}")
-            await asyncio.Future()  # Run forever
-    
-    def run(self):
-        """Run the server (blocking)"""
         try:
-            asyncio.run(self.start_server())
-        except KeyboardInterrupt:
-            logger.info("Server stopped by user")
+            logger.info(f"🚀 Starting AINX WebSocket server on {self.host}:{self.port}")
+            
+            # Fixed handler signature for newer websockets library
+            async def handler_wrapper(websocket, path):
+                await self.client_handler(websocket, path)
+            
+            self.server = await websockets.serve(
+                handler_wrapper,
+                self.host,
+                self.port,
+                ping_interval=30,  # Send ping every 30 seconds
+                ping_timeout=60,   # Wait 60 seconds for pong
+                compression=None   # Disable compression for better performance
+            )
+            
+            self.running = True
+            self.stats["start_time"] = datetime.now()
+            
+            logger.info(f"✅ AINX WebSocket server running on ws://{self.host}:{self.port}")
+            logger.info(f"🌐 Ready to accept agent connections and client monitoring")
+            
+            # Keep server running
+            await self.server.wait_closed()
+            
         except Exception as e:
-            logger.error(f"Server error: {e}")
+            logger.error(f"Failed to start WebSocket server: {e}")
+            raise
+    
+    async def stop_server(self):
+        """Stop the WebSocket server"""
+        if self.server and self.running:
+            logger.info("🛑 Stopping AINX WebSocket server...")
+            
+            # Close all client connections
+            if self.clients:
+                await asyncio.gather(
+                    *[client.close() for client in self.clients.copy()],
+                    return_exceptions=True
+                )
+            
+            # Close server
+            self.server.close()
+            await self.server.wait_closed()
+            
+            self.running = False
+            logger.info("✅ AINX WebSocket server stopped")
 
-# Global server instance for agents to use
-_server_instance: Optional[AINXWebSocketServer] = None
+# Global server instance
+websocket_server = AINXWebSocketServer()
 
-def get_websocket_server() -> Optional[AINXWebSocketServer]:
-    """Get the global WebSocket server instance"""
-    return _server_instance
+# Signal handlers for graceful shutdown
+def signal_handler(signum, frame):
+    """Handle shutdown signals"""
+    logger.info(f"Received signal {signum}, shutting down...")
+    asyncio.create_task(websocket_server.stop_server())
 
-def set_websocket_server(server: AINXWebSocketServer):
-    """Set the global WebSocket server instance"""
-    global _server_instance
-    _server_instance = server
+# Public API functions for agents to report status
+async def report_agent_status(agent_id: str, status: str, details: Dict[str, Any] = None):
+    """Public API for agents to report their status"""
+    message = {
+        "type": "agent_status",
+        "agent_id": agent_id,
+        "status": status,
+        "details": details or {},
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    await websocket_server.broadcast_to_all_clients(message)
 
-# Convenience functions for agents to use
-async def ws_report_status(agent_id: str, status: str, details: Optional[Dict[str, Any]] = None):
-    """Report agent status to WebSocket clients"""
-    server = get_websocket_server()
-    if server:
-        await server.report_agent_status(agent_id, status, details)
+async def report_agent_thinking(agent_id: str, thought: str):
+    """Public API for agents to report thinking process"""
+    message = {
+        "type": "agent_thinking",
+        "agent_id": agent_id,
+        "thought": thought,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    await websocket_server.broadcast_to_all_clients(message)
 
-async def ws_report_message(sender: str, recipient: str, role: str, intent: str, content: str, direction: str = "sent"):
-    """Report AINX message to WebSocket clients"""
-    server = get_websocket_server()
-    if server:
-        if direction == "sent":
-            await server.report_message_sent(sender, recipient, role, intent, content)
-        else:
-            await server.report_message_received(sender, recipient, role, intent, content)
+async def report_agent_task(agent_id: str, task_name: str, task_status: str, summary: str = None):
+    """Public API for agents to report task progress"""
+    message = {
+        "type": "agent_task",
+        "agent_id": agent_id,
+        "task_name": task_name,
+        "task_status": task_status,
+        "summary": summary,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    await websocket_server.broadcast_to_all_clients(message)
 
-async def ws_report_thinking(agent_id: str, thought: str):
-    """Report agent thinking to WebSocket clients"""
-    server = get_websocket_server()
-    if server:
-        await server.report_agent_thinking(agent_id, thought)
-
-async def ws_report_task(agent_id: str, task: str, status: str = "started", result: str = None):
-    """Report agent task to WebSocket clients"""
-    server = get_websocket_server()
-    if server:
-        if status == "started":
-            await server.report_task_started(agent_id, task)
-        elif status == "completed":
-            await server.report_task_completed(agent_id, task, result)
-
-async def ws_report_error(agent_id: str, error: str, details: Optional[Dict[str, Any]] = None):
-    """Report agent error to WebSocket clients"""
-    server = get_websocket_server()
-    if server:
-        await server.report_error(agent_id, error, details)
+async def main():
+    """Main server function"""
+    # Set up signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    try:
+        await websocket_server.start_server()
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+    except Exception as e:
+        logger.error(f"Server error: {e}")
+    finally:
+        if websocket_server.running:
+            await websocket_server.stop_server()
 
 if __name__ == "__main__":
-    # Run server standalone
-    server = AINXWebSocketServer()
-    server.run()
-
-
-  
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\n🛑 Server stopped by user")
+        sys.exit(0)

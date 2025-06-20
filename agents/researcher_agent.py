@@ -42,13 +42,19 @@ class AsyncResearcherAgent(AsyncAgentBase):
             "data": self._data_search
         }
         
-    async def initialize(self, workspace, message_bus):
-        """Initialize agent with WebSocket reporting"""
-        await super().initialize(workspace, message_bus)
-        await ws_report_status("researcher", "initializing")
-        await ws_report_thinking("researcher", "Researcher agent coming online...")
-        self.logger.info("Researcher agent initialized")
-        await ws_report_status("researcher", "idle")
+async def initialize(self, workspace, message_bus):
+    """Initialize agent with WebSocket reporting"""
+    # Add WebSocket initialization at the beginning
+    await initialize_websocket()
+    
+    # Keep all your existing initialization code here
+    await super().initialize(workspace, message_bus)
+    
+    # Add WebSocket reports
+    await ws_report_status("researcher", "initializing")
+    await ws_report_thinking("researcher", "Researcher agent coming online...")
+    self.logger.info("Researcher agent initialized")
+    await ws_report_status("researcher", "idle")
         
     async def process_message(self, message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """Process research requests asynchronously with WebSocket reporting"""
@@ -493,3 +499,26 @@ async def test_researcher_agent():
 if __name__ == "__main__":
     # Run test
     asyncio.run(test_researcher_agent())
+
+    # Add this AFTER your existing imports
+try:
+    from websocket_integration import (
+        ws_report_status, 
+        ws_report_thinking, 
+        ws_report_task, 
+        ws_report_message,
+        ws_report_error,
+        ws_report_performance,
+        initialize_websocket
+    )
+    WEBSOCKET_AVAILABLE = True
+except ImportError:
+    WEBSOCKET_AVAILABLE = False
+    # Create no-op functions if websocket integration not available
+    async def ws_report_status(*args, **kwargs): pass
+    async def ws_report_thinking(*args, **kwargs): pass
+    async def ws_report_task(*args, **kwargs): pass
+    async def ws_report_message(*args, **kwargs): pass
+    async def ws_report_error(*args, **kwargs): pass
+    async def ws_report_performance(*args, **kwargs): pass
+    async def initialize_websocket(): pass
